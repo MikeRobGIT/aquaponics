@@ -18,18 +18,18 @@ mqtt_auth = { 'username': 'mqtt_user', 'password': '9EV8yw7qsPG%' }
 mqtt_topic = "homeassistant/sensor/aquarium/state"
 caltempC = 0
 minimumDelay = 1.5
-defaultDelay = 300.0
+defaultDelay = 30.0
 
 
 class AquariumSensor:
     def __init__(self, device):
         self.temp = self.resTemp(device)
         self.ph = self.resPH(device)
-        self.ppm = self.resPPM(device)
+        self.ec = self.resEC(device)
         hasTemp = self.temp != None and self.temp > 0 and self.temp < 120
-        hasPpm = self.ppm != None and self.ppm > 0 and self.ppm < 20000
+        hasPpm = self.ec != None and self.ec > 0 and self.ec < 20000
         hasPh = self.ph != None and self.ph > 0 and self.ph < 8.5
-        self.json = { "temp": self.temp, "ph": self.ph, "ppm": self.ppm }
+        self.json = { "temp": self.temp, "ph": self.ph, "ec": self.ec }
         self.clean = hasTemp and hasPpm and hasPh
 
     def tof(self, value):
@@ -74,18 +74,18 @@ class AquariumSensor:
         else:
             print("*** ERROR *** Problem reading sensor value")
 
-    def resPPM(self, device):
-        print("-------------------PPM---------------------------")
+    def resEC(self, device):
+        print("-------------------EC---------------------------")
         device.set_i2c_address(100)  # EC
-        ppm = float(device.query("R").replace("\x00","").strip())
-        print("Res PPM: "+str(ppm))
-        ppm = round(ppm)
-        if ppm != None and ppm > 0:
+        ec = float(device.query("R").replace("\x00","").strip())
+        print("Res EC: "+str(ec))
+        ec = round(ec)
+        if ec != None and ec > 0:
             try:
-                return ppm
+                return ec
             except Exception as e:
                 print(e)
-                print("*** ERROR *** Res PPM Publish Failed")
+                print("*** ERROR *** Res EC Publish Failed")
 
 def resInfo(device):
     res = AquariumSensor(device)
@@ -102,12 +102,12 @@ def configure_ha_auto_discovery():
     sleep(1)
     packageStr = json.dumps({
         "retain": True,
-        "unit_of_measurement": "ppm",
-        "value_template": "{{ value_json.ppm }}",
+        "unit_of_measurement": "ec",
+        "value_template": "{{ value_json.ec }}",
         "state_topic": "homeassistant/sensor/aquarium/state",
-        "name": "Aquarium PPM",
+        "name": "Aquarium EC",
         "icon": "mdi:water-opacity",
-        "unique_id": "aquarium_ppm",
+        "unique_id": "aquarium_ec",
         "device": {
             "identifiers": [
                 "aquarium_monitor_pi_3"
@@ -118,7 +118,7 @@ def configure_ha_auto_discovery():
         }
     })
     #print(packageStr)
-    publish.single("homeassistant/sensor/aquariumPPM/config",packageStr,hostname=mqtt_hostname, auth=mqtt_auth, retain=True)
+    publish.single("homeassistant/sensor/aquariumEC/config",packageStr,hostname=mqtt_hostname, auth=mqtt_auth, retain=True)
 
     sleep(1)
     packageStr = json.dumps({
@@ -176,6 +176,7 @@ def main():
         except Exception as e:
             print(e)
             print("*** ERROR *** Res Update Failed")
+            delaytime = 3.0
             pass
         time.sleep(delaytime - minimumDelay)
 
