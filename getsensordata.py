@@ -18,7 +18,7 @@ mqtt_auth = {'username': 'mqtt_user', 'password': '9EV8yw7qsPG%'}
 mqtt_topic = "homeassistant/sensor/aquarium/state"
 caltempC = 0
 minimumDelay = 1.5
-defaultDelay = 30.0
+defaultDelay = 300.0
 
 
 class AquariumSensor:
@@ -56,7 +56,7 @@ class AquariumSensor:
         device.set_i2c_address(99)  # pH
         print("Compensate pH Temp: "+str(caltempC))
         ph = 0
-        if caltempC != 0:
+        if float(caltempC) > 0:
             ph = float(device.query("RT,"+str(caltempC)
                                     ).replace("\x00", "").strip())
         else:
@@ -97,11 +97,14 @@ def resInfo(device):
         print(packageStr)
         publish.single(mqtt_topic, packageStr,
                        hostname=mqtt_hostname, auth=mqtt_auth)
+    else:
+        raise ValueError('Problem reading a sendors data.')
 
     print("-------------------------------------------------")
 
 
 def configure_ha_auto_discovery():
+    print("*** Configuring HASS Auto Discovery ***")
     # config HA auto discovery
     sleep(1)
     packageStr = json.dumps({
@@ -122,8 +125,10 @@ def configure_ha_auto_discovery():
         }
     })
     # print(packageStr)
+    print("Sending EC Config...")
     publish.single("homeassistant/sensor/aquariumEC/config", packageStr,
                    hostname=mqtt_hostname, auth=mqtt_auth, retain=True)
+    print("Done!")
 
     sleep(1)
     packageStr = json.dumps({
@@ -144,8 +149,10 @@ def configure_ha_auto_discovery():
         }
     })
     # print(packageStr)
+    print("Sending pH Config...")
     publish.single("homeassistant/sensor/aquariumPh/config", packageStr,
                    hostname=mqtt_hostname, auth=mqtt_auth, retain=True)
+    print("Done!")
 
     sleep(1)
     packageStr = json.dumps({
@@ -167,25 +174,25 @@ def configure_ha_auto_discovery():
         }
     })
     # print(packageStr)
+    print("Sending Temperature Config...")
     publish.single("homeassistant/sensor/aquariumT/config", packageStr,
                    hostname=mqtt_hostname, auth=mqtt_auth, retain=True)
+    print("Done!")
 
 
 def main():
     configure_ha_auto_discovery()
     device = AtlasI2C()
-    delaytime = defaultDelay
-    if(delaytime < minimumDelay):
-        delaytime = minimumDelay
     while True:
         try:
             resInfo(device)
+            delaytime = defaultDelay
         except Exception as e:
+            print("*** ERROR ***")
             print(e)
-            print("*** ERROR *** Res Update Failed")
             delaytime = 3.0
             pass
-        time.sleep(delaytime - minimumDelay)
+        time.sleep(delaytime)
 
 
 if __name__ == '__main__':
